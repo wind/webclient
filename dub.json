@@ -1,0 +1,15 @@
+{
+	"authors": [
+		"qyli"
+	],
+	"buildRequirements": [
+		"allowWarnings"
+	],
+	"dependencies": {
+		"vibe-d": "~>0.9.5"
+	},
+	"description": "FKServiceTest",
+	"license": "proprietary",
+	"name": "test",
+	"targetType": "executable"
+}

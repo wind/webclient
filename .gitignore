@@ -1,0 +1,14 @@
+.dub
+docs.json
+__dummy.html
+docs/
+gd2-gltf.so
+gd2-gltf.dylib
+gd2-gltf.dll
+gd2-gltf.a
+gd2-gltf.lib
+gd2-gltf-test-*
+*.exe
+*.o
+*.obj
+*.lst
