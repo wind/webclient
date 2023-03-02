@@ -1,83 +1,11 @@
+import proto;
+
 import std.stdio;
 import std.conv;
 import std.array : appender, split;
 
 import vibe.vibe;
 //import asdf;
-
-enum Status 
-{
-    OK,
-    UNKNOWN_ERROR,
-    USER_NOT_EXIST,
-    USER_NOT_AUTHED,
-    USER_NOT_PERMISSION,
-    USER_NOT_PENDING,
-    SESSION_NOT_EXIST,
-    SESSION_ENDED,
-}
-
-struct PendingUser 
-{
-    string id;
-    string name;
-}
-
-struct OpreationResult 
-{
-	@optional
-    string status;
-	@optional
-    UserInfo[] users;
-	@optional
-    PendingUser[] pendingUsers;
-    @optional 
-	ChatSession sessions;
-    @optional 
-	Setting setting;
-
-	Status status_value() {
-		return status.empty?Status.OK:std.conv.to!Status(status);
-	}
-}
-
-struct ChatMessage {
-    uint _id; //name _id for compatable with mongodb
-    string from;
-    //string to = 3;
-    string content;
-    @optional 
-	string sessionId; //only used for intenal purpose, assigned when save to mongodb
-}
-
-struct ChatSession {
-    long _id; //name _id for compatable with mongodb
-    string from;
-    string to;
-	@optional
-    ChatMessage[] messages;
-    ulong beginTime;
-    ulong endTime;
-    string endUser;
- }
-
-struct ChatUser {
-    string id;
-    string name;
-    uint type; 
-}
-
-struct UserInfo {
-    @optional string id;
-   	@optional string name;
-    @optional uint type; 
-	@optional uint time;
-	@optional string icon;
-}
-
-struct Setting {
-    string welcome; //welcome message
-}
 
 interface ChatApi
 {
@@ -198,9 +126,17 @@ void main()
 
 		auto result = api.join(user);
 		assert(result.status_value == Status.OK);
-		result = api.accept(admin, user.id);
+		if (result.sessions.empty) {
+			result = api.accept(admin, user.id);
+			//writeln(result);
+			assert(result.status_value == Status.OK);
+		}
+		result = api.join(user);
 		assert(result.status_value == Status.OK);
-		result = api.end(user, user.id);
+		writeln(result);
+		assert(result.sessions.length == 1);
+		//assert(result.sessions[0].id == info1.id);		
+		result = api.end(user, result.sessions[0]._id.to!string);
 		writeln(result);
 		assert(result.status_value == Status.OK);
 
