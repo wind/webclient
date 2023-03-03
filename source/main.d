@@ -2,6 +2,7 @@ import proto;
 
 import std.stdio;
 import std.conv;
+import std.string;
 import std.array : appender, split;
 
 import vibe.vibe;
@@ -38,7 +39,7 @@ interface ChatApi
     OpreationResult accept(@viaQuery("u") ChatUser u, @viaQuery("target") string target);
 
 	@path("/session")
-    OpreationResult session(@viaQuery("u") ChatUser u, @viaQuery("sid") long sid);
+    OpreationResult session(@viaQuery("u") ChatUser u, @viaQuery("sid") long sid, @viaQuery("mbegin") int mbegin, @viaQuery("mend") int mend);
 
 	@path("/end")
     OpreationResult end(@viaQuery("u") ChatUser u, @viaQuery("sid") long sid);
@@ -48,6 +49,9 @@ interface ChatApi
 
 	@path("/history")
     OpreationResult history(@viaQuery("u") ChatUser u, @viaQuery("from") string from, @viaQuery("to") string to, @viaQuery("stime") long stime);
+
+	@path("/offlineSession")
+    OpreationResult offlineSession(@viaQuery("u") ChatUser u, @viaQuery("sid") long sid, @viaQuery("mbegin") int mbegin, @viaQuery("mend") int mend);
 }
 
 void main()
@@ -124,6 +128,15 @@ void main()
 
 	//test pending
 	{
+		//clear session first
+		result = api.listSessions(admin);
+		assert(result.status_value == Status.OK);
+
+		foreach( s ; result.sessions) {
+			result = api.end(admin, s._id);
+			assert(result.status_value == Status.OK);
+		}
+
 		result = api.list(user);
 		assert(result.status_value == Status.USER_NOT_PERMISSION);
 
@@ -192,21 +205,55 @@ void main()
 		result = api.say(user2, sid, "say 1");
 		assert(result.status_value == Status.USER_NOT_PERMISSION);
 
-		result = api.say(user, sid, "say 1");
-		assert(result.status_value == Status.OK);
-		result = api.say(user, sid, "say 2");
-		assert(result.status_value == Status.OK);
+		int mend = 30;
+		foreach(i ; 0 .. mend) {
+			result = api.say(user, sid, format!"say %s"(i));
+			assert(result.status_value == Status.OK);
+		}
 
-		result = api.session(user, sid);
+		//result = api.session(user, sid, 0, -1);
+		//writeln(result);
+
+		int mbegin = 10;
+		result = api.session(user, sid, mbegin, mend-1);
 		//writeln(result);
 		assert(result.status_value == Status.OK);
 		assert(result.sessions.length == 1);	
 		auto session = result.sessions[0];
-		assert(session.messages.length == 2);
-		assert(session.messages[0].content == "say 1");
+		assert(session.messages.length == 20);
 		assert(session.messages[0].from == user.id);
-		assert(session.messages[0].id == 0);
-		assert(session.messages[1].content == "say 2");
+		foreach(i ; mbegin .. mend) {
+			assert(session.messages[i - mbegin].id == i);
+			assert(session.messages[i - mbegin].content == format!"say %s"(i));
+		}
+
+		mbegin = 0;
+		mend = 10;
+		result = api.session(user, sid, mbegin, mend-1);
+		//writeln(result);
+		assert(result.status_value == Status.OK);
+		assert(result.sessions.length == 1);	
+		session = result.sessions[0];
+		assert(session.messages.length == 10);
+		assert(session.messages[0].from == user.id);
+		foreach(i ; mbegin .. mend) {
+			assert(session.messages[i - mbegin].id == i);
+			assert(session.messages[i - mbegin].content == format!"say %s"(i));
+		}
+
+		mbegin = -1 - 20;
+		mend = -1;
+		result = api.session(user, sid, mbegin + 1, mend);
+		//writeln(result);
+		assert(result.status_value == Status.OK);
+		assert(result.sessions.length == 1);	
+		session = result.sessions[0];
+		assert(session.messages.length == 20);
+		assert(session.messages[0].from == user.id);
+		foreach(i ; 10 .. 30) {
+			assert(session.messages[i-10].id == i);
+			assert(session.messages[i-10].content == format!"say %s"(i));
+		}
 
 		result = api.end(user2, sid);
 		assert(result.status_value == Status.USER_NOT_PERMISSION);
@@ -233,15 +280,4 @@ void main()
 		assert(result.status_value == Status.OK);		
 	}
 
-/*
-	requestHTTP("http://127.0.0.1:8082/regSetting?" ~ query.data,
-		(scope HTTPClientRequest req) {
-			// could add headers here before sending,
-			// write a POST body, or do similar things.
-		},
-		(scope HTTPClientResponse res) {
-			logInfo("Response: %s", res.bodyReader.readAllUTF8());
-		}
-	);
-*/
 }
